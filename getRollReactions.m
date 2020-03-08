@@ -1,0 +1,66 @@
+
+% ay is the lateral acceleration in m/s^2
+% Fz1 and Fz2 are the outer and inner tyre loads respectively
+% rollangle is the angle of roll of the vehicle chassis in radians 
+
+function [Fz1,Fz2,rollangle] = getRollReactions(ay)
+
+global g     % [m/s^2] constant of cravity
+global mc    % [kg]    chassis mass
+global mw    % [kg]    mass of each knuckle and wheel
+global s     % [m]     track width
+global h0    % [m]     height of center of gravity
+global r0    % [m]     static tire radius
+global cs    % [N/m]   suspension stiffness
+global cb    % [N/m]   stiffness of anti roll bar
+global cy    % [N/m]   tire lateral stiffness
+global cz    % [N/m]   tire radial stiffness
+
+% (Referred from Road Vehicle Dynamics Fundamentals and Modeling authored
+% by Georg Rill) https://in.mathworks.com/academia/books/road-vehicle-dynamics-rill.html
+%
+
+% axle kinematics
+dydz = 0 ;   % [-] lateral motion of wheel center caused by vertical
+dadz = 0/180*pi; % [Grad/m] camber change caused by vertical motion
+
+hr = h0-r0 ; sh = s/2;  dyqdz = dydz + r0*dadz; % some abbreviations
+
+% stiffness matrix (column by column)
+K(:,1) = [        2*cy         ; ...
+                   0           ; ...     
+                2*cy*h0        ; ...
+                cy*dyqdz       ; ...
+               -cy*dyqdz       ];
+K(:,2) = [         0           ; ...
+                  2*cz         ; ...
+                   0           ; ...
+                   cz          ; ...
+                   cz          ];
+K(:,3) = [       2*cy*h0       ; ...
+                    0          ; ...
+           2*cz*sh^2+2*cy*h0^2 ; ...
+            sh*cz+h0*dyqdz*cy  ; ...
+           -sh*cz-h0*dyqdz*cy  ];
+K(:,4) = [        cy*dyqdz     ; ...
+                     cz        ; ...
+             sh*cz+h0*dyqdz*cy ; ...
+           cs+cb+cz+dyqdz^2*cy ; ...
+                  -cb          ];
+K(:,5) = [      -cy*dyqdz      ; ...
+                    cz         ; ...
+           -sh*cz-h0*dyqdz*cy  ; ...
+                     -cb       ; ...
+          cs+cb+cz+dyqdz^2*cy  ];
+
+b = -[ mc+2*mw;  0;  2*mw*hr;  mw*dydz; -mw*dydz ]*ay;  % right hand side
+
+x = K\b; % solve set of linear eqautions and display results  
+
+
+% compute and display wheel loads
+Fz1=(mw+mc/2)*g+cz*(x(2)+s/2*x(3)+x(4));
+Fz2=(mw+mc/2)*g+cz*(x(2)-s/2*x(3)+x(5));
+rollangle = x(3);
+
+end
